@@ -38,6 +38,7 @@ export class OpenAiHandler implements ApiHandler, SingleCompletionHandler {
 	async *createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream {
 		const modelInfo = this.getModel().info
 		const modelId = this.options.openAiModelId ?? ""
+		const useLiteLLM = this.options.openAiUseLiteLLM ?? false
 
 		const deepseekReasoner = modelId.includes("deepseek-reasoner")
 
@@ -48,7 +49,7 @@ export class OpenAiHandler implements ApiHandler, SingleCompletionHandler {
 			}
 			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
 				model: modelId,
-				temperature: 0,
+				temperature: useLiteLLM ? 0.7 : 0,
 				messages: deepseekReasoner
 					? convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
 					: [systemMessage, ...convertToOpenAiMessages(messages)],
@@ -63,6 +64,7 @@ export class OpenAiHandler implements ApiHandler, SingleCompletionHandler {
 
 			for await (const chunk of stream) {
 				const delta = chunk.choices[0]?.delta ?? {}
+				const finishReason = chunk.choices[0]?.finish_reason
 
 				if (delta.content) {
 					yield {
@@ -77,6 +79,16 @@ export class OpenAiHandler implements ApiHandler, SingleCompletionHandler {
 						text: (delta.reasoning_content as string | undefined) || "",
 					}
 				}
+
+				// Handle LiteLLM completion
+				if (useLiteLLM && finishReason === "stop") {
+					yield {
+						type: "text",
+						text: "",
+					}
+					break
+				}
+
 				if (chunk.usage) {
 					yield {
 						type: "usage",
@@ -94,6 +106,7 @@ export class OpenAiHandler implements ApiHandler, SingleCompletionHandler {
 
 			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
 				model: modelId,
+				temperature: useLiteLLM ? 0.7 : 0,
 				messages: deepseekReasoner
 					? convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
 					: [systemMessage, ...convertToOpenAiMessages(messages)],
@@ -124,6 +137,7 @@ export class OpenAiHandler implements ApiHandler, SingleCompletionHandler {
 		try {
 			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
 				model: this.getModel().id,
+				temperature: this.options.openAiUseLiteLLM ? 0.7 : 0,
 				messages: [{ role: "user", content: prompt }],
 			}
 

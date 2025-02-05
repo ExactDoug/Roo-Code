@@ -596,6 +596,15 @@ const ApiOptions = ({ apiErrorMessage, modelIdErrorMessage }: ApiOptionsProps) =
 						</Checkbox>
 					</div>
 					<Checkbox
+						checked={apiConfiguration?.openAiUseLiteLLM ?? false}
+						onChange={(checked: boolean) => {
+							handleInputChange("openAiUseLiteLLM")({
+								target: { value: checked },
+							})
+						}}>
+						Use LiteLLM
+					</Checkbox>
+					<Checkbox
 						checked={apiConfiguration?.openAiUseAzure ?? false}
 						onChange={(checked: boolean) => {
 							handleInputChange("openAiUseAzure")({
